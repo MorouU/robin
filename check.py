@@ -49,11 +49,11 @@ def findFiles(dir):
 
     for fileName in fileList:
         absFile = path.realpath(path.join(dir, fileName))
-        if (time() - path.getmtime(absFile) < default_values['timeMin']*60):
-            if (path.isdir(absFile)):
-                findFiles(absFile)
-                find_files['dir'].append(absFile)
-            elif (path.isfile(absFile)):
+        if (path.isdir(absFile)):
+            findFiles(absFile)
+            find_files['dir'].append(absFile)
+        elif (path.isfile(absFile)):
+            if (time() - path.getmtime(absFile) < default_values['timeMin'] * 60):
                 find_files['files'].append(absFile)
 
 # 进行备份操作
@@ -176,8 +176,12 @@ def checkNewFile():
             # 兼容
             if(system() == "Linux"):
 
-                with popen("find " + path.realpath(checkDir) + " -name \"*\" -mmin " + default_values['timeMin'].__str__() + " 2>/dev/null", "r") as p:
+                with popen("find " + path.realpath(checkDir) + " -name \"*\" -mmin " + default_values['timeMin'].__str__() + " -type f 2>/dev/null", "r") as p:
                     result = p.read().split("\n")
+
+                with popen("find " + path.realpath(checkDir) + " -name \"*\" -type d 2>/dev/null", "r") as p:
+                    result.extend(p.read().split("\n"))
+
 
             elif(system() == "Windows"):
 
