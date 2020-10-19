@@ -13,6 +13,7 @@
     * logDir => 日志存储目录
     * logFileName => 日志文件名称
     * hashFile => 白名单记录文件名（和日志文件共同存储于日志存储目录）
+    * backDir => 备份文件存储目录
     * timeSec => 实时监控频率(秒)
     * timeMin => 实时监控新文件添加频率(分)
  
