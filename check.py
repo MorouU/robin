@@ -1,8 +1,9 @@
 
-from time import sleep
+from time import sleep,time
+from platform import system
 from os import path,listdir,popen,remove
 from time import ctime
-from shutil import copytree,copy
+from shutil import copytree,copy,rmtree
 from json import loads,dumps
 from threading import Thread
 from hashlib import sha256
@@ -24,6 +25,12 @@ dir_files = {
     "files":[]
 }
 
+# 兼容windows
+find_files = {
+    "dir" : [],
+    "files" : []
+}
+
 # 是否输出信息
 isOutput = 0
 
@@ -32,6 +39,22 @@ thread_pool = {
     'checkFileHash': None,
     'checkNewFile' : None
 }
+
+# 兼容windows
+def findFiles(dir):
+
+    global find_files
+
+    fileList = listdir(dir)
+
+    for fileName in fileList:
+        absFile = path.realpath(path.join(dir, fileName))
+        if (time() - path.getmtime(absFile) < default_values['timeMin']*60):
+            if (path.isdir(absFile)):
+                findFiles(absFile)
+                find_files['dir'].append(absFile)
+            elif (path.isfile(absFile)):
+                find_files['files'].append(absFile)
 
 # 进行备份操作
 def getBackup(sDir,bDir):
@@ -84,6 +107,9 @@ def getFilesHash():
     for fileName in dir_files['files']:
         result_dict[fileName] = [fileName,path.realpath(path.realpath(backDir) + "/" + fileName[len(path.realpath(checkDir)):]),getFileHash(fileName = fileName)]
 
+    for dirName in dir_files['dir']:
+        result_dict[dirName] = [dirName,path.realpath(path.realpath(backDir) + "/" + dirName[len(path.realpath(checkDir)):])]
+
     result_dict_json = dumps(result_dict)
 
     with open(path.join(logDir,hashFile),"w") as f:
@@ -98,6 +124,8 @@ def checkFileHash():
         try:
             with open(path.realpath(logDir + "/" + hashFile), "r") as f:
                 result_dict = loads(f.read())
+
+            # 对文件操作
             for fileName in dir_files['files']:
                 # 文件被删除
                 if(not path.exists(fileName)):
@@ -110,15 +138,29 @@ def checkFileHash():
                     continue
 
                 if(getFileHash(fileName = fileName) != result_dict[fileName][2]):
-                    if(isOutput):
-                        logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + fileName + " ] 文件hash不匹配！")
-                        logFileWrite(f"------ {getFileHash(fileName = fileName)} <> {result_dict[fileName][2]} ------")
-                        logFileWrite("[O] 输出 { 来自检查文件hash } -> 尝试替换~ \n")
+
+                    logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + fileName + " ] 文件hash不匹配！")
+                    logFileWrite(f"------ {getFileHash(fileName = fileName)} <> {result_dict[fileName][2]} ------")
+                    logFileWrite("[O] 输出 { 来自检查文件hash } -> 尝试替换~ \n")
+
                     remove(result_dict[fileName][0])
                     copy(result_dict[fileName][1], result_dict[fileName][0])
+
+            # 对目录操作
+            for dirName in dir_files['dir']:
+                # 目录被删除
+                if(not path.exists(dirName)):
+                    logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + dirName + " ] 目录被删除！")
+                    logFileWrite("[O] 输出 { 来自检查文件hash } -> 尝试恢复目录~ \n")
+                    if(dirName in result_dict.keys()):
+                        copytree(result_dict[dirName][1],result_dict[dirName][0])
+                    else:
+                        logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + dirName + " ] 目录恢复失败！")
+
         except Exception as e:
             logFileWrite("[-] 警告 { 来自检查文件hash } -> " + e.__str__())
-        sleep(default_values["timeSec"])
+        finally:
+            sleep(default_values["timeSec"])
 
 # 检查是否存在新文件增加
 def checkNewFile():
@@ -129,24 +171,47 @@ def checkNewFile():
         try:
             with open(path.realpath(logDir + "/" + hashFile), "r") as f:
                 result_dict = loads(f.read())
-            with popen("find " + path.realpath(checkDir) + " -name \"*\" -mmin " + default_values['timeMin'].__str__() + " 2>/dev/null", "r") as p:
-                result = p.read().split("\n")
+
+            result = []
+            # 兼容
+            if(system() == "Linux"):
+
+                with popen("find " + path.realpath(checkDir) + " -name \"*\" -mmin " + default_values['timeMin'].__str__() + " 2>/dev/null", "r") as p:
+                    result = p.read().split("\n")
+
+            elif(system() == "Windows"):
+
+                global find_files
+                find_files = {"dir":[],"files":[]}
+                findFiles(path.realpath(checkDir))
+
+                for each in find_files["dir"]:
+                    result.append(each)
+                for each in find_files["files"]:
+                    result.append(each)
 
             # 若结果为空则跳过
             if(len(result) == 1 and result[0] == ''):
                 continue
 
             # 剔除自身
-            result.remove(path.realpath(checkDir))
+            if(path.realpath(checkDir) in result):
+                result.remove(path.realpath(checkDir))
 
             for fileName in result:
                 if (path.realpath(fileName) not in result_dict.keys() and fileName != ''):
-                    logFileWrite("[O] 输出 {来自是否存在新文件增加} -> [ " + fileName + " ] 文件被添加！")
+                    logFileWrite("[O] 输出 {来自是否存在新文件增加} -> [ " + fileName + " ] 文件/目录被添加！")
                     # 删除被添加的文件
-                    remove(path.realpath(fileName))
+                    if(path.isfile(path.realpath(fileName))):
+                        remove(path.realpath(fileName))
+                    # 删除被添加的目录
+                    if(path.isdir(path.realpath(fileName))):
+                        rmtree(path.realpath(fileName))
+
         except Exception as e:
             logFileWrite("[-] 警告 { 来自是否存在新文件增加 } -> " + e.__str__())
-        sleep(default_values["timeSec"])
+        finally:
+            sleep(default_values["timeSec"])
 
 
 
@@ -155,7 +220,7 @@ def checkNewFile():
 # 检查参数
 def checkParams(**params):
 
-    global checkDir,logDir,logFileName,hashFile,backDir,dir_files
+    global checkDir,logDir,logFileName,hashFile,backDir
 
     # 检查需检查的目录参数
     if (not path.isdir(params['checkDir']) or params['checkDir'] == ""):
