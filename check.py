@@ -10,9 +10,9 @@ from hashlib import sha256
 
 # 默认参数
 default_values = {
-    "checkDir" : "./a",
-    "logDir" : "./b",
-    "backDir" : "/tmp",
+    "checkDir" : "/var/www/html",
+    "logDir" : "/tmp",
+    "backDir" : "/tmp/" + ctime().replace(" ","_") + ".bak",
     "logFileName" : ctime().replace(" ","_") + ".log",
     "hashFile":ctime().replace(" ","_") + ".hash",
     "timeSec" : 2,
@@ -204,7 +204,7 @@ def checkNewFile():
 
             for fileName in result:
                 if (path.realpath(fileName) not in result_dict.keys() and fileName != ''):
-                    logFileWrite("[O] 输出 {来自是否存在新文件增加} -> [ " + fileName + " ] 文件/目录被添加！")
+                    logFileWrite("[O] 输出 { 来自是否存在新文件增加 } -> [ " + fileName + " ] 文件/目录被添加！")
                     # 删除被添加的文件
                     if(path.isfile(path.realpath(fileName))):
                         remove(path.realpath(fileName))
@@ -222,7 +222,7 @@ def checkNewFile():
 
 
 # 检查参数
-def checkParams(**params):
+def checkParams(params):
 
     global checkDir,logDir,logFileName,hashFile,backDir
 
@@ -230,26 +230,36 @@ def checkParams(**params):
     if (not path.isdir(params['checkDir']) or params['checkDir'] == ""):
         print("[*] -> 需要检查的目录不存在！默认设为 " + default_values['checkDir'])
         checkDir = default_values['checkDir']
+    else:
+        checkDir = params['checkDir']
 
     # 检查日志目录参数
     if (not path.isdir(params['logDir']) or params['logDir'] == ""):
         print("[*] -> 存储日志目录不存在！默认设为 " + default_values['logDir'])
         logDir = default_values['logDir']
+    else:
+        logDir = params['logDir']
 
     # 检查日志文件名称参数
     if (params['logFileName'] == ""):
         print("[*] -> 日志名称为空！默认设为 " + default_values['logFileName'])
         logFileName = default_values['logFileName']
+    else:
+        logFileName = params['logFileName']
 
     # 检查hash文件位置参数
     if (params['hashFile'] == ""):
         print("[*] -> hash文件位置为空！默认设为 " + default_values['hashFile'])
         hashFile = default_values['hashFile']
+    else:
+        hashFile = params['hashFile']
 
     # 检查备份目录参数
     if (params['backDir'] == ""):
         print("[*] -> 备份目录名称为空！默认设为 " + default_values['backDir'])
         backDir = default_values['backDir']
+    else:
+        backDir = params['backDir']
 
     # 获取目录和文件
     getAllFiles(checkDir)
@@ -263,21 +273,24 @@ if __name__ == '__main__':
         try:
             print("===== 欢迎使用Morouu文件检查玩意 =====")
 
+            inputParams = {}
+
             # 获取输入
-            checkDir = input("[*] 请输入需检查的目录(留空则使用默认值) -> ")
-            logDir = input("[*] 请输入日志存储的目录(留空则使用默认值) -> ")
-            logFileName = input("[*] 请输入日志文件名称(留空则使用默认值) -> ")
-            hashFile = input("[*] 请输入hash文件存储位置(留空则使用默认值) -> ")
-            backDir = input("[*] 请输入备份目录(留空则使用默认值) -> ")
+            inputParams['checkDir'] = input("[*] 请输入需检查的目录(留空则使用默认值) -> ")
+            inputParams['logDir'] = input("[*] 请输入日志存储的目录(留空则使用默认值) -> ")
+            inputParams['logFileName'] = input("[*] 请输入日志文件名称(留空则使用默认值) -> ")
+            inputParams['hashFile'] = input("[*] 请输入hash文件存储位置(留空则使用默认值) -> ")
+            inputParams['backDir'] = input("[*] 请输入备份目录(留空则使用默认值) -> ")
 
             # 检查参数
-            checkParams(checkDir = checkDir, logDir = logDir, hashFile = hashFile, logFileName = logFileName, backDir = backDir)
+            checkParams(inputParams)
 
             # 可选部分
 
             # 备份
             isBackup = input("[**] 是否进行备份(y/N) -> ")
             if(isBackup.upper() == 'Y'):
+                global checkDir,backDir
                 getBackup(sDir = checkDir,bDir = backDir)
 
             # 生成hash
@@ -300,6 +313,9 @@ if __name__ == '__main__':
 
                 for each in thread_pool.values():
                     each.join()
+            else:
+                while True:
+                    sleep(default_values["timeSec"])
 
         except KeyboardInterrupt:
             isExit = input("[*] 是否退出(y/N) -> ")
