@@ -11,6 +11,7 @@ from hashlib import sha256
 default_values = {
     "checkDir" : "./a",
     "logDir" : "./b",
+    "backDir" : "/tmp",
     "logFileName" : ctime().replace(" ","_") + ".log",
     "hashFile":ctime().replace(" ","_") + ".hash",
     "timeSec" : 2,
