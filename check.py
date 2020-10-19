@@ -73,7 +73,7 @@ def logFileWrite(s):
         print(s)
     # 写入日志
     with open(path.realpath(logDir + "/" + logFileName),"a") as f:
-        f.write(s)
+        f.write(s + "\n")
 
 # 获取目录以及文件
 def getAllFiles(dir):
@@ -125,6 +125,17 @@ def checkFileHash():
             with open(path.realpath(logDir + "/" + hashFile), "r") as f:
                 result_dict = loads(f.read())
 
+            # 对目录操作
+            for dirName in dir_files['dir']:
+                # 目录被删除
+                if(not path.exists(dirName)):
+                    logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + dirName + " ] 目录被删除！")
+                    logFileWrite("[O] 输出 { 来自检查文件hash } -> 尝试恢复目录~ \n")
+                    if(dirName in result_dict.keys()):
+                        copytree(result_dict[dirName][1],result_dict[dirName][0])
+                    else:
+                        logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + dirName + " ] 目录恢复失败！")
+
             # 对文件操作
             for fileName in dir_files['files']:
                 # 文件被删除
@@ -145,17 +156,6 @@ def checkFileHash():
 
                     remove(result_dict[fileName][0])
                     copy(result_dict[fileName][1], result_dict[fileName][0])
-
-            # 对目录操作
-            for dirName in dir_files['dir']:
-                # 目录被删除
-                if(not path.exists(dirName)):
-                    logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + dirName + " ] 目录被删除！")
-                    logFileWrite("[O] 输出 { 来自检查文件hash } -> 尝试恢复目录~ \n")
-                    if(dirName in result_dict.keys()):
-                        copytree(result_dict[dirName][1],result_dict[dirName][0])
-                    else:
-                        logFileWrite("[O] 输出 { 来自检查文件hash } -> [ " + dirName + " ] 目录恢复失败！")
 
         except Exception as e:
             logFileWrite("[-] 警告 { 来自检查文件hash } -> " + e.__str__())
